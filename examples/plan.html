@@ -10,16 +10,20 @@
       h1, h2 { line-height: 1.2; }
     </style>
   </head>
-  <body>
+  <body data-review-kicker="PLAN DISCUSSION">
     <h1 data-review-id="title">Example implementation plan</h1>
     <p data-review-id="summary">A short summary goes here.</p>
-    <section data-review-id="step-1">
+    <section data-review-id="step-1" data-review-kind="direction">
       <h2>1. First step</h2>
       <p>Describe the first step in plain language.</p>
     </section>
-    <section data-review-id="step-2">
+    <section data-review-id="step-2" data-review-kind="direction">
       <h2>2. Second step</h2>
       <p>Describe the second step in plain language.</p>
+    </section>
+    <section data-review-id="decision-1" data-review-kind="decision">
+      <h2>Decision</h2>
+      <p>Choose the preferred implementation approach.</p>
     </section>
   </body>
 </html>

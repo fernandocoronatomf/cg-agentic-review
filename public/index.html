@@ -7,22 +7,41 @@
     <link rel="stylesheet" href="/style.css">
   </head>
   <body>
+    <header class="app-header">
+      <div class="brand"><strong>CG</strong><span>AGENTIC REVIEW</span></div>
+      <div class="header-actions">
+        <span id="status" role="status">Loading…</span>
+        <button id="end" class="end-button">End review</button>
+      </div>
+    </header>
+    <section class="document-bar" aria-label="Review summary">
+      <div class="document-heading">
+        <span id="artifact-kicker">AGENT REVIEW</span>
+        <h1 id="artifact-title">Loading artifact…</h1>
+      </div>
+      <div id="counts" class="counts">
+        <span id="direction-count">0 directions</span>
+        <span aria-hidden="true">+</span>
+        <span id="decision-count">0 decisions</span>
+      </div>
+    </section>
     <main>
       <iframe id="artifact" title="Review artifact"></iframe>
-      <aside>
-        <h1>CG Review</h1>
-        <p class="hint">Click an item in the page, then write what should change.</p>
-        <label for="target">Target</label>
-        <input id="target" value="page" readonly>
-        <label for="selected">Selected text</label>
-        <textarea id="selected" rows="3" readonly></textarea>
-        <label for="comment">Comment</label>
-        <textarea id="comment" rows="7" placeholder="What should the agent change?"></textarea>
-        <button id="send">Send to agent</button>
-        <button id="end" class="secondary">End review</button>
-        <p id="status" role="status">Loading…</p>
-      </aside>
     </main>
+    <div id="annotation-layer" class="annotation-layer" hidden>
+      <section id="annotation-card" class="annotation-card" role="dialog" aria-modal="true" aria-labelledby="annotation-title">
+        <h2 id="annotation-title">Annotate</h2>
+        <p id="selection-preview" class="selection-preview" hidden></p>
+        <textarea id="comment" rows="5" placeholder="Tell the agent what to change about this element…"></textarea>
+        <div class="annotation-footer">
+          <small>Ctrl/⌘ + Enter to send</small>
+          <div>
+            <button id="cancel" class="secondary">Cancel</button>
+            <button id="send">Queue</button>
+          </div>
+        </div>
+      </section>
+    </div>
     <script src="/app.js"></script>
   </body>
 </html>
