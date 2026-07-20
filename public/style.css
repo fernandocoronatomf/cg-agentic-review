@@ -36,25 +36,28 @@ button, textarea { font: inherit; }
 }
 
 .document-bar {
-  min-height: 112px;
+  min-height: 104px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 24px;
   margin: 24px 32px;
-  padding: 20px 28px;
-  background: #fffdf8;
-  border: 2px solid #202028;
-  border-radius: 24px;
-  box-shadow: 0 3px 0 #202028;
+  padding: 20px 24px 20px 28px;
+  background: #fff;
+  border: 1px solid #d9d5cc;
+  border-left: 7px solid #6655d5;
+  border-radius: 10px;
+  box-shadow: 0 12px 30px rgb(32 32 40 / 8%);
 }
 
 .document-heading { min-width: 0; }
-#artifact-kicker { display: block; margin-bottom: 5px; color: #51419c; font-size: 12px; font-weight: 800; letter-spacing: .16em; }
-#artifact-title { margin: 0; max-width: 800px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 20px; line-height: 1.25; }
-.counts { flex: none; padding: 9px 16px; border-radius: 999px; color: #fff; background: #6655d5; font-size: 13px; font-weight: 800; letter-spacing: .06em; }
+#artifact-kicker { display: block; margin-bottom: 7px; color: #6655d5; font-size: 11px; font-weight: 800; letter-spacing: .14em; }
+#artifact-title { margin: 0; max-width: 800px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 22px; line-height: 1.2; }
+.counts { flex: none; min-width: 190px; padding: 4px 0 4px 22px; color: #24242d; border-left: 1px solid #ddd9d1; font-size: 15px; font-weight: 800; text-align: left; }
+.count-label { display: block; margin-bottom: 5px; color: #8a8792; font-size: 9px; font-weight: 800; letter-spacing: .18em; }
+.count-separator { padding: 0 6px; color: #6655d5; }
 
-main { height: calc(100vh - 252px); margin: 0 32px 24px; overflow: hidden; background: white; border: 1px solid #d8d3c8; border-radius: 18px; }
+main { height: calc(100vh - 244px); margin: 0 32px 24px; overflow: hidden; background: white; border: 1px solid #d8d3c8; border-radius: 18px; }
 iframe { width: 100%; height: 100%; border: 0; background: white; }
 
 .chat-button {
@@ -126,7 +129,8 @@ iframe { width: 100%; height: 100%; border: 0; background: white; }
   .brand span, #status { display: none; }
   .document-bar { min-height: 98px; margin: 14px; padding: 16px; border-radius: 18px; }
   #artifact-title { font-size: 16px; }
-  .counts { padding: 7px 10px; font-size: 11px; }
+  .counts { min-width: auto; padding: 4px 0 4px 12px; font-size: 12px; }
+  .count-label { display: none; }
   main { height: calc(100vh - 198px); margin: 0 14px 14px; }
   .annotation-footer { align-items: flex-end; }
   .annotation-footer small { max-width: 130px; }

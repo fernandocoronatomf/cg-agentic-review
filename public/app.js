@@ -41,7 +41,7 @@ function updateDocumentSummary(doc) {
   const decisions = doc.querySelectorAll("[data-review-kind~=decision]").length;
   document.querySelector("#artifact-title").textContent = title;
   document.querySelector("#artifact-kicker").textContent = doc.body.dataset.reviewKicker || "AGENT REVIEW";
-  setCount("#direction-count", directions, "direction");
+  setCount("#direction-count", directions, "path");
   setCount("#decision-count", decisions, "decision");
 }
 
