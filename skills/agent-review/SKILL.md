@@ -14,8 +14,9 @@ Use `/home/fernando/Projects/agent-review/bin/agent-review.mjs` to open a local 
 3. Give each feedback-worthy section a short stable `data-review-id`, such as `summary`, `option-a`, or `step-3`. Add `data-review-kind="direction"` or `data-review-kind="decision"` only when it should contribute to the summary counts. Optionally set `data-review-kicker` on `<body>`.
 4. Run `agent-review.mjs open <file>` and give the user the localhost URL if the browser does not open.
 5. Run `agent-review.mjs poll <file>` in the active turn. Do not repeatedly read or send the whole artifact.
-6. On feedback, locate only the returned `target`, make the narrow edit, and poll again.
-7. Stop when poll returns `{"status":"ended"}`.
+6. On annotation feedback, locate only the returned target, make the narrow edit, and poll again.
+7. When the target is chat, answer in the browser with `agent-review.mjs reply <file> <concise-reply>`, then poll again.
+8. Stop when poll returns `{"status":"ended"}`.
 
 Poll returns compact JSON like:
 

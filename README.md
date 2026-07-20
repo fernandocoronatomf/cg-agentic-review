@@ -19,8 +19,9 @@ node bin/agent-review.mjs poll examples/plan.html
 ```
 
 Click an element in the browser, enter a comment, and send it. The `poll`
-command prints one compact JSON response. After editing the HTML, run `poll`
-again. The browser reloads the artifact automatically.
+command prints one compact JSON response. Browser chat arrives with target `chat`;
+answer it with `cg-review reply <file.html> "Your reply"`. After editing the HTML,
+run `poll` again. The browser reloads the artifact automatically.
 
 Optional global command:
 

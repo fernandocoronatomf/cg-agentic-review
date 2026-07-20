@@ -16,6 +16,7 @@ function usage() {
 Usage:
   cg-review open <file.html> [--no-open]
   cg-review poll <file.html>
+  cg-review reply <file.html> <message>
   cg-review end <file.html>
   cg-review status <file.html>
   cg-review stop
@@ -137,6 +138,18 @@ async function main() {
         return;
       }
     }
+  }
+
+  if (command === "reply") {
+    const message = flags.join(" ").trim();
+    if (!message) throw new Error("A reply message is required.");
+    const session = await register(file);
+    const response = await request("/api/reply", {
+      method: "POST",
+      body: JSON.stringify({ session: session.id, text: message }),
+    });
+    if (!response.ok) throw new Error(await response.text());
+    return;
   }
 
   if (command === "end") {

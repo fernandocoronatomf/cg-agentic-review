@@ -7,11 +7,16 @@ const card = document.querySelector("#annotation-card");
 const annotationTitle = document.querySelector("#annotation-title");
 const selectionPreview = document.querySelector("#selection-preview");
 const comment = document.querySelector("#comment");
+const chatPanel = document.querySelector("#chat-panel");
+const messages = document.querySelector("#messages");
+const chatInput = document.querySelector("#chat-input");
+const unread = document.querySelector("#unread");
 let version = null;
 let highlighted = null;
 let previousOutline = "";
 let activeTarget = "page";
 let activeSelection = "";
+const knownMessageIds = new Set();
 
 function selectorFor(element) {
   const reviewElement = element.closest("[data-review-id]");
@@ -127,6 +132,56 @@ async function queueFeedback() {
   }
 }
 
+async function refreshConversation() {
+  try {
+    const response = await fetch("/api/conversation?session=" + encodeURIComponent(session), { cache: "no-store" });
+    if (!response.ok) return;
+    const data = await response.json();
+    let hasNewAgentMessage = false;
+    messages.replaceChildren();
+    if (!data.messages.length) {
+      const empty = document.createElement("p");
+      empty.className = "empty-chat";
+      empty.textContent = "Messages sent here go directly to the active agent.";
+      messages.append(empty);
+    }
+    for (const message of data.messages) {
+      if (!knownMessageIds.has(message.id) && message.role === "agent") hasNewAgentMessage = true;
+      knownMessageIds.add(message.id);
+      const bubble = document.createElement("div");
+      bubble.className = "message " + (message.kind === "annotation" ? "annotation" : message.role);
+      bubble.textContent = message.text;
+      messages.append(bubble);
+    }
+    if (hasNewAgentMessage && chatPanel.hidden) unread.hidden = false;
+    if (!chatPanel.hidden) messages.scrollTop = messages.scrollHeight;
+  } catch {}
+}
+
+function openChat() {
+  chatPanel.hidden = false;
+  unread.hidden = true;
+  refreshConversation();
+  requestAnimationFrame(() => chatInput.focus());
+}
+
+function closeChat() {
+  chatPanel.hidden = true;
+}
+
+async function sendChat() {
+  const text = chatInput.value.trim();
+  if (!text) return;
+  try {
+    await send("/api/chat", { session, text });
+    chatInput.value = "";
+    status.textContent = "Message sent to the agent.";
+    await refreshConversation();
+  } catch (error) {
+    status.textContent = error.message;
+  }
+}
+
 async function refreshVersion() {
   try {
     const response = await fetch("/api/version?session=" + encodeURIComponent(session), { cache: "no-store" });
@@ -151,6 +206,16 @@ comment.addEventListener("keydown", (event) => {
   }
 });
 
+document.querySelector("#chat-toggle").addEventListener("click", openChat);
+document.querySelector("#chat-close").addEventListener("click", closeChat);
+document.querySelector("#chat-send").addEventListener("click", sendChat);
+chatInput.addEventListener("keydown", (event) => {
+  if (event.key === "Enter" && !event.shiftKey) {
+    event.preventDefault();
+    sendChat();
+  }
+});
+
 document.querySelector("#end").addEventListener("click", async () => {
   await send("/api/end", { session });
   closeAnnotation();
@@ -164,5 +229,7 @@ if (!session) {
   frame.addEventListener("load", attachReviewEvents);
   status.textContent = "Click anything in the page to annotate it.";
   refreshVersion();
+  refreshConversation();
   setInterval(refreshVersion, 1200);
+  setInterval(refreshConversation, 1200);
 }

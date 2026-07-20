@@ -65,3 +65,42 @@ test("truncates selected text to keep feedback bounded", async (t) => {
   const result = await fetch(`${base}/api/poll?session=${opened.id}`).then((response) => response.json());
   assert.equal(result.items[0].selected.length, 400);
 });
+
+
+test("bridges browser chat to the agent and returns the reply", async (t) => {
+  const { server, file, base } = await fixture();
+  t.after(() => server.close());
+  const opened = await fetch(base + "/api/open", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ file }),
+  }).then((response) => response.json());
+
+  const polling = fetch(base + "/api/poll?session=" + opened.id).then((response) => response.json());
+  await fetch(base + "/api/chat", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ session: opened.id, text: "Can we simplify step two?" }),
+  });
+
+  assert.deepEqual(await polling, {
+    status: "feedback",
+    items: [{ target: "chat", comment: "Can we simplify step two?" }],
+  });
+
+  await fetch(base + "/api/reply", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ session: opened.id, text: "Yes. I will make it one action." }),
+  });
+  const conversation = await fetch(base + "/api/conversation?session=" + opened.id)
+    .then((response) => response.json());
+
+  assert.deepEqual(
+    conversation.messages.map(({ role, text }) => ({ role, text })),
+    [
+      { role: "user", text: "Can we simplify step two?" },
+      { role: "agent", text: "Yes. I will make it one action." },
+    ],
+  );
+});

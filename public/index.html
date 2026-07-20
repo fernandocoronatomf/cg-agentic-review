@@ -11,6 +11,7 @@
       <div class="brand"><strong>CG</strong><span>AGENTIC REVIEW</span></div>
       <div class="header-actions">
         <span id="status" role="status">Loading…</span>
+        <button id="chat-toggle" class="chat-button">Chat <span id="unread" hidden>●</span></button>
         <button id="end" class="end-button">End review</button>
       </div>
     </header>
@@ -28,6 +29,18 @@
     <main>
       <iframe id="artifact" title="Review artifact"></iframe>
     </main>
+    <aside id="chat-panel" class="chat-panel" aria-label="Conversation" hidden>
+      <header>
+        <h2>Conversation</h2>
+        <button id="chat-close" aria-label="Close conversation">×</button>
+      </header>
+      <div id="messages" class="messages"></div>
+      <div class="chat-composer">
+        <textarea id="chat-input" rows="3" placeholder="Chat with the agent…"></textarea>
+        <button id="chat-send">Send</button>
+      </div>
+    </aside>
+
     <div id="annotation-layer" class="annotation-layer" hidden>
       <section id="annotation-card" class="annotation-card" role="dialog" aria-modal="true" aria-labelledby="annotation-title">
         <h2 id="annotation-title">Annotate</h2>

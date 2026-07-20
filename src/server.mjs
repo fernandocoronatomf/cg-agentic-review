@@ -8,6 +8,7 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const PUBLIC = resolve(ROOT, "public");
 const MAX_COMMENT = 2000;
 const MAX_SELECTION = 400;
+const MAX_CHAT_MESSAGE = 4000;
 
 function json(response, status, value) {
   const body = JSON.stringify(value);
@@ -45,6 +46,19 @@ function sessionId(file) {
 
 export function createReviewServer() {
   const sessions = new Map();
+
+  function addMessage(session, role, value, kind = "chat") {
+    session.messages ||= [];
+    const message = {
+      id: randomUUID(),
+      role,
+      kind,
+      text: String(value || "").trim().slice(0, MAX_CHAT_MESSAGE),
+    };
+    session.messages.push(message);
+    if (session.messages.length > 100) session.messages.splice(0, session.messages.length - 100);
+    return message;
+  }
 
   function getSession(url) {
     return sessions.get(url.searchParams.get("session"));
@@ -100,7 +114,7 @@ export function createReviewServer() {
         const id = sessionId(file);
         let session = sessions.get(id);
         if (!session) {
-          session = { id, file, queue: [], ended: false, waiter: null, nonce: randomUUID() };
+          session = { id, file, queue: [], messages: [], ended: false, waiter: null, nonce: randomUUID() };
           sessions.set(id, session);
         }
         if (reopen) session.ended = false;
@@ -127,6 +141,13 @@ export function createReviewServer() {
         const session = getSession(url);
         if (!session) return json(response, 404, { error: "Unknown session" });
         json(response, 200, { status: session.ended ? "ended" : "open", queued: session.queue.length });
+        return;
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/conversation") {
+        const session = getSession(url);
+        if (!session) return json(response, 404, { error: "Unknown session" });
+        json(response, 200, { messages: session.messages || [] });
         return;
       }
 
@@ -173,7 +194,32 @@ export function createReviewServer() {
         const selected = String(input.selected || "").trim().slice(0, MAX_SELECTION);
         if (selected) item.selected = selected;
         session.queue.push(item);
+        addMessage(session, "user", item.target + ": " + comment, "annotation");
         flush(session);
+        json(response, 200, { ok: true });
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/chat") {
+        const input = await bodyJson(request);
+        const session = sessions.get(input.session);
+        if (!session) return json(response, 404, { error: "Unknown session" });
+        const message = String(input.text || "").trim().slice(0, MAX_CHAT_MESSAGE);
+        if (!message) return json(response, 400, { error: "Message is required" });
+        session.queue.push({ target: "chat", comment: message });
+        addMessage(session, "user", message);
+        flush(session);
+        json(response, 200, { ok: true });
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/reply") {
+        const input = await bodyJson(request);
+        const session = sessions.get(input.session);
+        if (!session) return json(response, 404, { error: "Unknown session" });
+        const message = String(input.text || "").trim().slice(0, MAX_CHAT_MESSAGE);
+        if (!message) return json(response, 400, { error: "Reply is required" });
+        addMessage(session, "agent", message);
         json(response, 200, { ok: true });
         return;
       }
