@@ -1,0 +1,18 @@
+{
+  "name": "cg-agentic-review",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A lightweight local workspace for reviewing structured AI-agent output",
+  "type": "module",
+  "bin": {
+    "cg-review": "./bin/agent-review.mjs",
+    "agent-review": "./bin/agent-review.mjs"
+  },
+  "scripts": {
+    "test": "node --test",
+    "start": "node ./bin/agent-review.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Agent Review"
+  short_description: "Review large agent outputs in a local page"
+  default_prompt: "Use $agent-review to put this structured output into a lightweight local review page."

@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>CG Agentic Review</title>
+    <link rel="stylesheet" href="/style.css">
+  </head>
+  <body>
+    <main>
+      <iframe id="artifact" title="Review artifact"></iframe>
+      <aside>
+        <h1>CG Review</h1>
+        <p class="hint">Click an item in the page, then write what should change.</p>
+        <label for="target">Target</label>
+        <input id="target" value="page" readonly>
+        <label for="selected">Selected text</label>
+        <textarea id="selected" rows="3" readonly></textarea>
+        <label for="comment">Comment</label>
+        <textarea id="comment" rows="7" placeholder="What should the agent change?"></textarea>
+        <button id="send">Send to agent</button>
+        <button id="end" class="secondary">End review</button>
+        <p id="status" role="status">Loading…</p>
+      </aside>
+    </main>
+    <script src="/app.js"></script>
+  </body>
+</html>
