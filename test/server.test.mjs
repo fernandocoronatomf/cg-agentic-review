@@ -104,3 +104,53 @@ test("bridges browser chat to the agent and returns the reply", async (t) => {
     ],
   );
 });
+
+
+test("delivers bounded area-selection context", async (t) => {
+  const { server, file, base } = await fixture();
+  t.after(() => server.close());
+  const opened = await fetch(base + "/api/open", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ file }),
+  }).then((response) => response.json());
+
+  await fetch(base + "/api/feedback", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      session: opened.id,
+      target: "area",
+      comment: "Add a contents table here",
+      area: {
+        xPct: 4.44,
+        yPct: -2,
+        widthPct: 28.88,
+        heightPct: 72.22,
+        scrollX: 0,
+        scrollY: 320,
+        viewportWidth: 1200,
+        viewportHeight: 700,
+        nearby: ["@summary", "@step-1"],
+      },
+    }),
+  });
+
+  const result = await fetch(base + "/api/poll?session=" + opened.id)
+    .then((response) => response.json());
+  assert.deepEqual(result.items[0], {
+    target: "area",
+    comment: "Add a contents table here",
+    area: {
+      xPct: 4.4,
+      yPct: 0,
+      widthPct: 28.9,
+      heightPct: 72.2,
+      scrollX: 0,
+      scrollY: 320,
+      viewportWidth: 1200,
+      viewportHeight: 700,
+      nearby: ["@summary", "@step-1"],
+    },
+  });
+});

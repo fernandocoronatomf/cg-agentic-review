@@ -11,11 +11,17 @@ const chatPanel = document.querySelector("#chat-panel");
 const messages = document.querySelector("#messages");
 const chatInput = document.querySelector("#chat-input");
 const unread = document.querySelector("#unread");
+const areaToggle = document.querySelector("#area-toggle");
+const areaLayer = document.querySelector("#area-layer");
+const areaSelection = document.querySelector("#area-selection");
+const areaHint = document.querySelector(".area-hint");
 let version = null;
 let highlighted = null;
 let previousOutline = "";
 let activeTarget = "page";
 let activeSelection = "";
+let activeArea = null;
+let areaStart = null;
 const knownMessageIds = new Set();
 
 function selectorFor(element) {
@@ -53,10 +59,118 @@ function clearHighlight() {
   highlighted = null;
 }
 
+function resetAreaMode() {
+  areaLayer.hidden = true;
+  areaSelection.hidden = true;
+  areaToggle.classList.remove("active");
+  areaStart = null;
+  activeArea = null;
+}
+
+function activateAreaMode() {
+  closeAnnotation();
+  closeChat();
+  const rect = frame.getBoundingClientRect();
+  areaLayer.style.left = rect.left + "px";
+  areaLayer.style.top = rect.top + "px";
+  areaLayer.style.width = rect.width + "px";
+  areaLayer.style.height = rect.height + "px";
+  areaLayer.hidden = false;
+  areaToggle.classList.add("active");
+  areaHint.hidden = false;
+  status.textContent = "Drag over any page area, including blank space.";
+}
+
+function areaPoint(event) {
+  const rect = areaLayer.getBoundingClientRect();
+  return {
+    x: Math.max(0, Math.min(event.clientX - rect.left, rect.width)),
+    y: Math.max(0, Math.min(event.clientY - rect.top, rect.height)),
+  };
+}
+
+function areaRect(start, end) {
+  return {
+    left: Math.min(start.x, end.x),
+    top: Math.min(start.y, end.y),
+    width: Math.abs(end.x - start.x),
+    height: Math.abs(end.y - start.y),
+  };
+}
+
+function drawArea(rect) {
+  areaSelection.hidden = false;
+  areaSelection.style.left = rect.left + "px";
+  areaSelection.style.top = rect.top + "px";
+  areaSelection.style.width = rect.width + "px";
+  areaSelection.style.height = rect.height + "px";
+}
+
+function percent(value, total) {
+  return Math.round((value / total) * 1000) / 10;
+}
+
+function placeCardAtArea(rect) {
+  layer.hidden = false;
+  const host = areaLayer.getBoundingClientRect();
+  const viewportRect = {
+    left: host.left + rect.left,
+    top: host.top + rect.top,
+    right: host.left + rect.left + rect.width,
+    bottom: host.top + rect.top + rect.height,
+  };
+  const width = Math.min(480, innerWidth - 32);
+  const cardHeight = card.offsetHeight;
+  let left = viewportRect.right + 10;
+  let top = viewportRect.top;
+  if (left + width > innerWidth - 16) left = viewportRect.left - width - 10;
+  left = Math.max(16, Math.min(left, innerWidth - width - 16));
+  if (top + cardHeight > innerHeight - 16) top = Math.max(host.top + 12, innerHeight - cardHeight - 16);
+  card.style.left = left + "px";
+  card.style.top = top + "px";
+}
+
+function finishAreaSelection(rect) {
+  areaHint.hidden = true;
+  const host = areaLayer.getBoundingClientRect();
+  const doc = frame.contentDocument;
+  const nearby = doc ? [...doc.querySelectorAll("[data-review-id]")]
+    .filter((element) => {
+      const elementRect = element.getBoundingClientRect();
+      return elementRect.right >= rect.left
+        && elementRect.left <= rect.left + rect.width
+        && elementRect.bottom >= rect.top
+        && elementRect.top <= rect.top + rect.height;
+    })
+    .map((element) => "@" + element.dataset.reviewId)
+    .slice(0, 8) : [];
+  activeTarget = "area";
+  activeSelection = "";
+  activeArea = {
+    xPct: percent(rect.left, host.width),
+    yPct: percent(rect.top, host.height),
+    widthPct: percent(rect.width, host.width),
+    heightPct: percent(rect.height, host.height),
+    scrollX: Math.round(frame.contentWindow?.scrollX || 0),
+    scrollY: Math.round(frame.contentWindow?.scrollY || 0),
+    viewportWidth: Math.round(host.width),
+    viewportHeight: Math.round(host.height),
+    nearby,
+  };
+  annotationTitle.textContent = "Annotate selected area";
+  selectionPreview.textContent = nearby.length
+    ? "Near " + nearby.join(", ")
+    : "Blank page region";
+  selectionPreview.hidden = false;
+  placeCardAtArea(rect);
+  requestAnimationFrame(() => comment.focus());
+}
+
 function closeAnnotation() {
   layer.hidden = true;
   comment.value = "";
   clearHighlight();
+  resetAreaMode();
 }
 
 function placeCard(element) {
@@ -79,6 +193,7 @@ function placeCard(element) {
 }
 
 function choose(element, selection = "") {
+  resetAreaMode();
   clearHighlight();
   highlighted = element;
   previousOutline = highlighted.style.outline;
@@ -123,6 +238,7 @@ async function queueFeedback() {
       session,
       target: activeTarget,
       selected: activeSelection,
+      area: activeArea,
       comment: comment.value,
     });
     closeAnnotation();
@@ -203,6 +319,47 @@ comment.addEventListener("keydown", (event) => {
   if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
     event.preventDefault();
     queueFeedback();
+  }
+});
+
+areaToggle.addEventListener("click", () => {
+  if (areaLayer.hidden) activateAreaMode();
+  else {
+    closeAnnotation();
+    status.textContent = "Area selection cancelled.";
+  }
+});
+
+areaLayer.addEventListener("pointerdown", (event) => {
+  closeAnnotation();
+  activateAreaMode();
+  areaStart = areaPoint(event);
+  areaLayer.setPointerCapture(event.pointerId);
+  drawArea(areaRect(areaStart, areaStart));
+});
+
+areaLayer.addEventListener("pointermove", (event) => {
+  if (!areaStart) return;
+  drawArea(areaRect(areaStart, areaPoint(event)));
+});
+
+areaLayer.addEventListener("pointerup", (event) => {
+  if (!areaStart) return;
+  const rect = areaRect(areaStart, areaPoint(event));
+  areaStart = null;
+  if (rect.width < 12 || rect.height < 12) {
+    closeAnnotation();
+    status.textContent = "Drag a larger area to annotate it.";
+    return;
+  }
+  finishAreaSelection(rect);
+  status.textContent = "Describe what should change in the selected area.";
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && !areaLayer.hidden) {
+    closeAnnotation();
+    status.textContent = "Area selection cancelled.";
   }
 });
 

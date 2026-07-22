@@ -60,6 +60,20 @@ button, textarea { font: inherit; }
 main { height: calc(100vh - 244px); margin: 0 32px 24px; overflow: hidden; background: white; border: 1px solid #d8d3c8; border-radius: 18px; }
 iframe { width: 100%; height: 100%; border: 0; background: white; }
 
+.area-button {
+  padding: 8px 12px;
+  color: #e8e8ed;
+  background: transparent;
+  border: 1px solid #555765;
+  border-radius: 8px;
+  font-weight: 700;
+  cursor: crosshair;
+}
+.area-button.active { color: #171820; background: #f1c65d; border-color: #f1c65d; }
+.area-layer { position: fixed; z-index: 18; cursor: crosshair; background: rgb(102 85 213 / 4%); touch-action: none; }
+.area-selection { position: absolute; border: 2px dashed #ee4c2c; background: rgb(238 76 44 / 9%); box-shadow: 0 0 0 1px rgb(255 255 255 / 70%) inset; }
+.area-hint { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); padding: 6px 10px; color: #fff; background: #20212a; border-radius: 7px; font-size: 12px; pointer-events: none; }
+
 .chat-button {
   padding: 8px 12px;
   color: #fff;

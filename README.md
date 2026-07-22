@@ -18,7 +18,7 @@ node bin/agent-review.mjs open examples/plan.html
 node bin/agent-review.mjs poll examples/plan.html
 ```
 
-Click an element in the browser, enter a comment, and send it. The `poll`
+Click an element to comment on it, or choose `Select area` and drag over any region—including blank space—before entering an instruction. The `poll`
 command prints one compact JSON response. Browser chat arrives with target `chat`;
 answer it with `cg-review reply <file.html> "Your reply"`. After editing the HTML,
 run `poll` again. The browser reloads the artifact automatically.
@@ -44,8 +44,9 @@ not tied to either agent.
 ## Token behavior
 
 - The initial artifact costs about as much as generating the same content once.
-- A feedback message contains only its stable target, selected excerpt (up to
-  400 characters), and comment (up to 2,000 characters).
+- Element feedback contains only its stable target, selected excerpt (up to
+  400 characters), and comment (up to 2,000 characters). Area feedback adds a
+  bounded normalized rectangle and up to eight nearby stable IDs, not a screenshot.
 - The agent edits the local file instead of reproducing the full result in chat.
 - The server and an idle `poll` consume no model tokens.
 

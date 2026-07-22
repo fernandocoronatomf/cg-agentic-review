@@ -40,6 +40,34 @@ async function bodyJson(request) {
   return JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}");
 }
 
+function boundedNumber(value, minimum, maximum, decimals = 0) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return minimum;
+  const bounded = Math.max(minimum, Math.min(maximum, number));
+  const factor = 10 ** decimals;
+  return Math.round(bounded * factor) / factor;
+}
+
+function normalizeArea(value) {
+  if (!value || typeof value !== "object") return null;
+  const widthPct = boundedNumber(value.widthPct, 0, 100, 1);
+  const heightPct = boundedNumber(value.heightPct, 0, 100, 1);
+  if (!widthPct || !heightPct) return null;
+  return {
+    xPct: boundedNumber(value.xPct, 0, 100, 1),
+    yPct: boundedNumber(value.yPct, 0, 100, 1),
+    widthPct,
+    heightPct,
+    scrollX: boundedNumber(value.scrollX, 0, 10_000_000),
+    scrollY: boundedNumber(value.scrollY, 0, 10_000_000),
+    viewportWidth: boundedNumber(value.viewportWidth, 1, 100_000),
+    viewportHeight: boundedNumber(value.viewportHeight, 1, 100_000),
+    nearby: Array.isArray(value.nearby)
+      ? value.nearby.slice(0, 8).map((item) => String(item).slice(0, 100))
+      : [],
+  };
+}
+
 function sessionId(file) {
   return createHash("sha256").update(file).digest("hex").slice(0, 16);
 }
@@ -193,6 +221,8 @@ export function createReviewServer() {
         };
         const selected = String(input.selected || "").trim().slice(0, MAX_SELECTION);
         if (selected) item.selected = selected;
+        const area = normalizeArea(input.area);
+        if (area) item.area = area;
         session.queue.push(item);
         addMessage(session, "user", item.target + ": " + comment, "annotation");
         flush(session);

@@ -11,6 +11,7 @@
       <div class="brand"><strong>CG</strong><span>AGENTIC REVIEW</span></div>
       <div class="header-actions">
         <span id="status" role="status">Loading…</span>
+        <button id="area-toggle" class="area-button">Select area</button>
         <button id="chat-toggle" class="chat-button">Chat <span id="unread" hidden>●</span></button>
         <button id="end" class="end-button">End review</button>
       </div>
@@ -32,6 +33,11 @@
     <main>
       <iframe id="artifact" title="Review artifact"></iframe>
     </main>
+    <div id="area-layer" class="area-layer" hidden>
+      <div id="area-selection" class="area-selection" hidden></div>
+      <span class="area-hint">Drag to select a region · Esc to cancel</span>
+    </div>
+
     <aside id="chat-panel" class="chat-panel" aria-label="Conversation" hidden>
       <header>
         <h2>Conversation</h2>
