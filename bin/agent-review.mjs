@@ -16,13 +16,15 @@ function usage() {
 Usage:
   cg-review open <file.html> [--no-open]
   cg-review poll <file.html>
+  cg-review watch <file.html>
   cg-review reply <file.html> <message>
   cg-review end <file.html>
   cg-review status <file.html>
   cg-review stop
 
-The poll command waits silently and prints one compact JSON response when the
-reviewer sends feedback or ends the session.`);
+The poll command prints one feedback response and exits. The watch command
+stays connected and prints one compact JSON line for every response until the
+review ends.`);
 }
 
 async function request(pathname, options = {}) {
@@ -127,7 +129,7 @@ async function main() {
     return;
   }
 
-  if (command === "poll") {
+  if (command === "poll" || command === "watch") {
     const session = await register(file);
     while (true) {
       const response = await request(`/api/poll?session=${encodeURIComponent(session.id)}`);
@@ -135,7 +137,7 @@ async function main() {
       const result = await response.json();
       if (result.status !== "waiting") {
         process.stdout.write(`${JSON.stringify(result)}\n`);
-        return;
+        if (command === "poll" || result.status === "ended") return;
       }
     }
   }

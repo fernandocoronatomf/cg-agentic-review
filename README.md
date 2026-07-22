@@ -15,7 +15,7 @@ Requires Node.js 20 or newer.
 ```bash
 cd /home/fernando/Projects/agent-review
 node bin/agent-review.mjs open examples/plan.html
-node bin/agent-review.mjs poll examples/plan.html
+node bin/agent-review.mjs watch examples/plan.html
 ```
 
 Click an element to comment on it, or choose `Select area` and drag over any
@@ -27,9 +27,8 @@ instruction, and send it. PNG, JPEG, and WebP images up to 15 MB are accepted.
 The original and composited annotation are saved under
 `~/.cg-agentic-review/uploads/<session>/`.
 
-The `poll` command prints one compact JSON response. Browser chat arrives with target `chat`;
-answer it with `cg-review reply <file.html> "Your reply"`. After editing the HTML,
-run `poll` again. The browser reloads the artifact automatically.
+The `watch` command stays connected and prints one compact JSON line for each feedback batch until the review ends. Use `poll` only when a one-shot response is intentional. Browser chat arrives with target `chat`;
+answer it with `cg-review reply <file.html> "Your reply"`. After editing the HTML, keep the same `watch` process running. The browser reloads the artifact automatically.
 
 Optional global command:
 
@@ -58,7 +57,7 @@ not tied to either agent.
 - Screenshot feedback contains the instruction and two local file paths. Image
   bytes are not embedded in the agent message or repeated as base64 text.
 - The agent edits the local file instead of reproducing the full result in chat.
-- The server and an idle `poll` consume no model tokens.
+- The server and an idle `watch` consume no model tokens.
 
 The server listens only on `127.0.0.1` and serves only HTML files explicitly
 opened through the CLI. Stop it with `cg-review stop`.
