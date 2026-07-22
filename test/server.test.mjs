@@ -203,3 +203,31 @@ test("stores original and annotated screenshots and queues only their paths", as
     },
   }]);
 });
+
+test("reports whether an agent listener is connected", async (t) => {
+  const { server, file, base } = await fixture();
+  t.after(() => server.close());
+  const opened = await fetch(base + "/api/open", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ file }),
+  }).then((response) => response.json());
+
+  const waiting = await fetch(base + "/api/status?session=" + opened.id)
+    .then((response) => response.json());
+  assert.equal(waiting.agentListening, false);
+
+  const polling = fetch(base + "/api/poll?session=" + opened.id)
+    .then((response) => response.json());
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  const connected = await fetch(base + "/api/status?session=" + opened.id)
+    .then((response) => response.json());
+  assert.equal(connected.agentListening, true);
+
+  await fetch(base + "/api/chat", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ session: opened.id, text: "Finish listener test" }),
+  });
+  await polling;
+});

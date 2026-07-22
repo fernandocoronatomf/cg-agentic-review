@@ -26,6 +26,34 @@ button, textarea { font: inherit; }
 .header-actions { display: flex; align-items: center; gap: 16px; }
 #status { max-width: 360px; color: #c7c8d0; font-size: 12px; }
 
+.connection-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 10px;
+  color: #dedfe5;
+  background: #252630;
+  border: 1px solid #4b4d5a;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 750;
+  cursor: pointer;
+}
+.connection-dot {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  background: #989aa5;
+  border-radius: 50%;
+}
+.connection-status.connected { color: #dff7e7; border-color: #34734b; }
+.connection-status.connected .connection-dot { background: #4bce75; box-shadow: 0 0 0 3px rgb(75 206 117 / 14%); }
+.connection-status.waiting { color: #ffe8ad; border-color: #80672c; }
+.connection-status.waiting .connection-dot { background: #f1c65d; }
+.connection-status.offline { color: #ffd5d0; border-color: #84443d; }
+.connection-status.offline .connection-dot { background: #ef5a4b; }
+.connection-status.ended { color: #d4d5dc; border-color: #555765; }
+
 .end-button {
   padding: 7px 11px;
   color: #e4e4e8;
@@ -241,7 +269,8 @@ iframe { width: 100%; height: 100%; border: 0; background: white; }
 
 @media (max-width: 700px) {
   .app-header { height: 58px; padding: 0 16px; }
-  .brand span, #status { display: none; }
+  .brand span, #status, #connection-label { display: none; }
+  .connection-status { padding: 8px; }
   .document-bar { min-height: 98px; margin: 14px; padding: 16px; border-radius: 18px; }
   #artifact-title { font-size: 16px; }
   .counts { min-width: auto; padding: 4px 0 4px 12px; font-size: 12px; }

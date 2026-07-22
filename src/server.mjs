@@ -181,6 +181,7 @@ export function createReviewServer(options = {}) {
             queue: [],
             messages: [],
             uploads: new Map(),
+            lastAgentSeenAt: 0,
             ended: false,
             waiter: null,
             nonce: randomUUID(),
@@ -210,7 +211,13 @@ export function createReviewServer(options = {}) {
       if (request.method === "GET" && url.pathname === "/api/status") {
         const session = getSession(url);
         if (!session) return json(response, 404, { error: "Unknown session" });
-        json(response, 200, { status: session.ended ? "ended" : "open", queued: session.queue.length });
+        json(response, 200, {
+          status: session.ended ? "ended" : "open",
+          queued: session.queue.length,
+          agentListening: Boolean(session.waiter)
+            || Date.now() - (session.lastAgentSeenAt || 0) < 2_000,
+          lastAgentSeenAt: session.lastAgentSeenAt || null,
+        });
         return;
       }
 
@@ -292,6 +299,7 @@ export function createReviewServer(options = {}) {
       if (request.method === "GET" && url.pathname === "/api/poll") {
         const session = getSession(url);
         if (!session) return json(response, 404, { error: "Unknown session" });
+        session.lastAgentSeenAt = Date.now();
         if (session.queue.length) {
           const items = session.queue.splice(0);
           json(response, 200, { status: "feedback", items });

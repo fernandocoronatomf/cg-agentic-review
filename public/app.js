@@ -2,6 +2,8 @@ const params = new URLSearchParams(location.search);
 const session = params.get("session");
 const frame = document.querySelector("#artifact");
 const status = document.querySelector("#status");
+const connectionStatus = document.querySelector("#connection-status");
+const connectionLabel = document.querySelector("#connection-label");
 const layer = document.querySelector("#annotation-layer");
 const card = document.querySelector("#annotation-card");
 const annotationTitle = document.querySelector("#annotation-title");
@@ -401,6 +403,44 @@ async function refreshConversation() {
   } catch {}
 }
 
+function showConnection(state, label, detail) {
+  connectionStatus.className = "connection-status " + state;
+  connectionLabel.textContent = label;
+  connectionStatus.title = detail + " Click to recheck.";
+  connectionStatus.setAttribute("aria-label", label + ". " + detail);
+}
+
+async function refreshConnection() {
+  if (!session) {
+    showConnection("offline", "No session", "The review session is missing.");
+    return;
+  }
+  try {
+    const response = await fetch(
+      "/api/status?session=" + encodeURIComponent(session),
+      { cache: "no-store" },
+    );
+    if (!response.ok) throw new Error("Status unavailable");
+    const data = await response.json();
+    if (data.status === "ended") {
+      showConnection("ended", "Review ended", "The local server is online, but this review is closed.");
+    } else if (data.agentListening) {
+      showConnection("connected", "Agent listening", "Feedback will be delivered immediately.");
+    } else {
+      const queued = data.queued
+        ? " " + data.queued + " feedback item" + (data.queued === 1 ? " is" : "s are") + " queued."
+        : "";
+      showConnection(
+        "waiting",
+        "Waiting for agent",
+        "The server is online, but no Codex or Claude poll is active." + queued,
+      );
+    }
+  } catch {
+    showConnection("offline", "Server offline", "The localhost review server cannot be reached.");
+  }
+}
+
 function openChat() {
   chatPanel.hidden = false;
   unread.hidden = true;
@@ -568,6 +608,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 document.querySelector("#chat-toggle").addEventListener("click", openChat);
+connectionStatus.addEventListener("click", refreshConnection);
 document.querySelector("#chat-close").addEventListener("click", closeChat);
 document.querySelector("#chat-send").addEventListener("click", sendChat);
 chatInput.addEventListener("keydown", (event) => {
@@ -591,6 +632,8 @@ if (!session) {
   status.textContent = "Click, select an area, or paste a screenshot to annotate.";
   refreshVersion();
   refreshConversation();
+  refreshConnection();
   setInterval(refreshVersion, 1200);
   setInterval(refreshConversation, 1200);
+  setInterval(refreshConnection, 1500);
 }
