@@ -1,7 +1,8 @@
 import { createHash, randomUUID } from "node:crypto";
-import { readFile, stat } from "node:fs/promises";
+import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
-import { dirname, resolve } from "node:path";
+import { homedir } from "node:os";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -9,6 +10,12 @@ const PUBLIC = resolve(ROOT, "public");
 const MAX_COMMENT = 2000;
 const MAX_SELECTION = 400;
 const MAX_CHAT_MESSAGE = 4000;
+const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
+const IMAGE_TYPES = new Map([
+  ["image/png", "png"],
+  ["image/jpeg", "jpg"],
+  ["image/webp", "webp"],
+]);
 
 function json(response, status, value) {
   const body = JSON.stringify(value);
@@ -38,6 +45,27 @@ async function bodyJson(request) {
     chunks.push(chunk);
   }
   return JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}");
+}
+
+async function bodyBuffer(request, maximum = MAX_IMAGE_BYTES) {
+  const chunks = [];
+  let size = 0;
+  for await (const chunk of request) {
+    size += chunk.length;
+    if (size > maximum) throw new Error("Image is too large");
+    chunks.push(chunk);
+  }
+  return Buffer.concat(chunks);
+}
+
+function image(response, status, body, contentType) {
+  response.writeHead(status, {
+    "content-type": contentType,
+    "content-length": body.length,
+    "cache-control": "private, no-store",
+    "x-content-type-options": "nosniff",
+  });
+  response.end(body);
 }
 
 function boundedNumber(value, minimum, maximum, decimals = 0) {
@@ -72,8 +100,13 @@ function sessionId(file) {
   return createHash("sha256").update(file).digest("hex").slice(0, 16);
 }
 
-export function createReviewServer() {
+export function createReviewServer(options = {}) {
   const sessions = new Map();
+  const stateDirectory = resolve(
+    options.stateDir
+      || process.env.CG_AGENTIC_REVIEW_STATE_DIR
+      || join(homedir(), ".cg-agentic-review"),
+  );
 
   function addMessage(session, role, value, kind = "chat") {
     session.messages ||= [];
@@ -142,7 +175,16 @@ export function createReviewServer() {
         const id = sessionId(file);
         let session = sessions.get(id);
         if (!session) {
-          session = { id, file, queue: [], messages: [], ended: false, waiter: null, nonce: randomUUID() };
+          session = {
+            id,
+            file,
+            queue: [],
+            messages: [],
+            uploads: new Map(),
+            ended: false,
+            waiter: null,
+            nonce: randomUUID(),
+          };
           sessions.set(id, session);
         }
         if (reopen) session.ended = false;
@@ -176,6 +218,74 @@ export function createReviewServer() {
         const session = getSession(url);
         if (!session) return json(response, 404, { error: "Unknown session" });
         json(response, 200, { messages: session.messages || [] });
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/upload") {
+        const session = getSession(url);
+        if (!session) return json(response, 404, { error: "Unknown session" });
+        const contentType = String(request.headers["content-type"] || "").split(";", 1)[0].toLowerCase();
+        const extension = IMAGE_TYPES.get(contentType);
+        if (!extension) return json(response, 415, { error: "Paste a PNG, JPEG, or WebP image" });
+        const body = await bodyBuffer(request);
+        if (!body.length) return json(response, 400, { error: "Image is empty" });
+        const upload = randomUUID();
+        const directory = join(stateDirectory, "uploads", session.id);
+        const original = join(directory, upload + "-original." + extension);
+        await mkdir(directory, { recursive: true });
+        await writeFile(original, body);
+        session.uploads.set(upload, { original, originalType: contentType, annotated: null });
+        json(response, 200, {
+          upload,
+          original,
+          url: "/api/upload-image?session=" + encodeURIComponent(session.id)
+            + "&upload=" + encodeURIComponent(upload),
+        });
+        return;
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/upload-image") {
+        const session = getSession(url);
+        const upload = session?.uploads.get(url.searchParams.get("upload"));
+        if (!upload) return json(response, 404, { error: "Unknown screenshot" });
+        image(response, 200, await readFile(upload.original), upload.originalType);
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/annotate") {
+        const session = getSession(url);
+        const uploadId = url.searchParams.get("upload");
+        const upload = session?.uploads.get(uploadId);
+        if (!upload) return json(response, 404, { error: "Unknown screenshot" });
+        const contentType = String(request.headers["content-type"] || "").split(";", 1)[0].toLowerCase();
+        if (contentType !== "image/png") return json(response, 415, { error: "Annotated image must be PNG" });
+        const body = await bodyBuffer(request, MAX_IMAGE_BYTES * 2);
+        if (!body.length) return json(response, 400, { error: "Annotated image is empty" });
+        const annotated = join(dirname(upload.original), uploadId + "-annotated.png");
+        await writeFile(annotated, body);
+        upload.annotated = annotated;
+        json(response, 200, { annotated });
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/screenshot-feedback") {
+        const input = await bodyJson(request);
+        const session = sessions.get(input.session);
+        if (!session) return json(response, 404, { error: "Unknown session" });
+        const upload = session.uploads.get(String(input.upload || ""));
+        if (!upload) return json(response, 404, { error: "Unknown screenshot" });
+        if (!upload.annotated) return json(response, 400, { error: "Annotate the screenshot before sending" });
+        const comment = String(input.comment || "").trim().slice(0, MAX_COMMENT);
+        if (!comment) return json(response, 400, { error: "Instruction is required" });
+        const item = {
+          target: "screenshot",
+          comment,
+          screenshot: { original: upload.original, annotated: upload.annotated },
+        };
+        session.queue.push(item);
+        addMessage(session, "user", "Screenshot: " + comment, "annotation");
+        flush(session);
+        json(response, 200, { ok: true });
         return;
       }
 

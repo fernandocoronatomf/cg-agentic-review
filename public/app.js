@@ -15,6 +15,12 @@ const areaToggle = document.querySelector("#area-toggle");
 const areaLayer = document.querySelector("#area-layer");
 const areaSelection = document.querySelector("#area-selection");
 const areaHint = document.querySelector(".area-hint");
+const screenshotLayer = document.querySelector("#screenshot-layer");
+const screenshotCanvas = document.querySelector("#screenshot-canvas");
+const screenshotComment = document.querySelector("#screenshot-comment");
+const screenshotFile = document.querySelector("#screenshot-file");
+const dropHint = document.querySelector("#drop-hint");
+const screenshotContext = screenshotCanvas.getContext("2d");
 let version = null;
 let highlighted = null;
 let previousOutline = "";
@@ -22,6 +28,11 @@ let activeTarget = "page";
 let activeSelection = "";
 let activeArea = null;
 let areaStart = null;
+let screenshotUpload = null;
+let screenshotImage = null;
+let screenshotStrokes = [];
+let currentStroke = null;
+let dragDepth = 0;
 const knownMessageIds = new Set();
 
 function selectorFor(element) {
@@ -232,6 +243,119 @@ async function send(path, payload) {
   if (!response.ok) throw new Error((await response.json()).error || "Request failed");
 }
 
+async function sendBlob(path, blob) {
+  const response = await fetch(path, {
+    method: "POST",
+    headers: { "content-type": blob.type },
+    body: blob,
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || "Request failed");
+  return data;
+}
+
+function redrawScreenshot() {
+  if (!screenshotImage) return;
+  screenshotContext.clearRect(0, 0, screenshotCanvas.width, screenshotCanvas.height);
+  screenshotContext.drawImage(screenshotImage, 0, 0);
+  screenshotContext.lineCap = "round";
+  screenshotContext.lineJoin = "round";
+  screenshotContext.strokeStyle = "#ef3f2d";
+  screenshotContext.lineWidth = Math.max(4, Math.min(14, screenshotCanvas.width / 220));
+  for (const stroke of screenshotStrokes) {
+    if (!stroke.length) continue;
+    screenshotContext.beginPath();
+    screenshotContext.moveTo(stroke[0].x, stroke[0].y);
+    for (const point of stroke.slice(1)) screenshotContext.lineTo(point.x, point.y);
+    if (stroke.length === 1) screenshotContext.lineTo(stroke[0].x + 0.1, stroke[0].y + 0.1);
+    screenshotContext.stroke();
+  }
+}
+
+function screenshotPoint(event) {
+  const rect = screenshotCanvas.getBoundingClientRect();
+  return {
+    x: (event.clientX - rect.left) * (screenshotCanvas.width / rect.width),
+    y: (event.clientY - rect.top) * (screenshotCanvas.height / rect.height),
+  };
+}
+
+function closeScreenshot() {
+  screenshotLayer.hidden = true;
+  screenshotUpload = null;
+  screenshotImage = null;
+  screenshotStrokes = [];
+  currentStroke = null;
+  screenshotComment.value = "";
+  screenshotFile.value = "";
+}
+
+async function openScreenshot(file) {
+  if (!file || !["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
+    status.textContent = "Choose a PNG, JPEG, or WebP screenshot.";
+    return;
+  }
+  try {
+    closeAnnotation();
+    closeChat();
+    status.textContent = "Preparing screenshot…";
+    const uploaded = await sendBlob(
+      "/api/upload?session=" + encodeURIComponent(session),
+      file,
+    );
+    const image = new Image();
+    image.src = uploaded.url;
+    await new Promise((resolve, reject) => {
+      image.onload = resolve;
+      image.onerror = () => reject(new Error("Could not load the screenshot"));
+    });
+    screenshotUpload = uploaded.upload;
+    screenshotImage = image;
+    screenshotStrokes = [];
+    screenshotCanvas.width = image.naturalWidth;
+    screenshotCanvas.height = image.naturalHeight;
+    redrawScreenshot();
+    screenshotLayer.hidden = false;
+    screenshotComment.focus();
+    status.textContent = "Draw on the screenshot and add an instruction.";
+  } catch (error) {
+    closeScreenshot();
+    status.textContent = error.message;
+  }
+}
+
+function canvasBlob() {
+  return new Promise((resolve, reject) => {
+    screenshotCanvas.toBlob(
+      (blob) => blob ? resolve(blob) : reject(new Error("Could not save the annotation")),
+      "image/png",
+    );
+  });
+}
+
+async function sendScreenshot() {
+  const instruction = screenshotComment.value.trim();
+  if (!instruction) {
+    screenshotComment.focus();
+    status.textContent = "Add an instruction for the agent.";
+    return;
+  }
+  try {
+    const upload = screenshotUpload;
+    const annotated = await canvasBlob();
+    await sendBlob(
+      "/api/annotate?session=" + encodeURIComponent(session)
+        + "&upload=" + encodeURIComponent(upload),
+      annotated,
+    );
+    await send("/api/screenshot-feedback", { session, upload, comment: instruction });
+    closeScreenshot();
+    status.textContent = "Annotated screenshot queued for the agent.";
+  } catch (error) {
+    status.textContent = error.message;
+  }
+}
+
 async function queueFeedback() {
   try {
     await send("/api/feedback", {
@@ -356,7 +480,77 @@ areaLayer.addEventListener("pointerup", (event) => {
   status.textContent = "Describe what should change in the selected area.";
 });
 
+document.querySelector("#screenshot-toggle").addEventListener("click", () => screenshotFile.click());
+document.querySelector("#screenshot-close").addEventListener("click", closeScreenshot);
+document.querySelector("#screenshot-cancel").addEventListener("click", closeScreenshot);
+document.querySelector("#screenshot-send").addEventListener("click", sendScreenshot);
+document.querySelector("#screenshot-undo").addEventListener("click", () => {
+  screenshotStrokes.pop();
+  redrawScreenshot();
+});
+document.querySelector("#screenshot-clear").addEventListener("click", () => {
+  screenshotStrokes = [];
+  redrawScreenshot();
+});
+screenshotFile.addEventListener("change", () => openScreenshot(screenshotFile.files[0]));
+screenshotComment.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") closeScreenshot();
+  if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
+    event.preventDefault();
+    sendScreenshot();
+  }
+});
+screenshotCanvas.addEventListener("pointerdown", (event) => {
+  currentStroke = [screenshotPoint(event)];
+  screenshotStrokes.push(currentStroke);
+  screenshotCanvas.setPointerCapture(event.pointerId);
+  redrawScreenshot();
+});
+screenshotCanvas.addEventListener("pointermove", (event) => {
+  if (!currentStroke) return;
+  currentStroke.push(screenshotPoint(event));
+  redrawScreenshot();
+});
+function finishScreenshotStroke() {
+  currentStroke = null;
+}
+screenshotCanvas.addEventListener("pointerup", finishScreenshotStroke);
+screenshotCanvas.addEventListener("pointercancel", finishScreenshotStroke);
+
+document.addEventListener("paste", (event) => {
+  const item = [...(event.clipboardData?.items || [])].find((candidate) => candidate.type.startsWith("image/"));
+  if (!item) return;
+  event.preventDefault();
+  openScreenshot(item.getAsFile());
+});
+document.addEventListener("dragenter", (event) => {
+  if (![...(event.dataTransfer?.types || [])].includes("Files")) return;
+  event.preventDefault();
+  dragDepth += 1;
+  dropHint.hidden = false;
+});
+document.addEventListener("dragover", (event) => {
+  if (![...(event.dataTransfer?.types || [])].includes("Files")) return;
+  event.preventDefault();
+});
+document.addEventListener("dragleave", () => {
+  dragDepth = Math.max(0, dragDepth - 1);
+  if (!dragDepth) dropHint.hidden = true;
+});
+document.addEventListener("drop", (event) => {
+  event.preventDefault();
+  dragDepth = 0;
+  dropHint.hidden = true;
+  const file = [...(event.dataTransfer?.files || [])].find((candidate) => candidate.type.startsWith("image/"));
+  if (file) openScreenshot(file);
+});
+
 document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && !screenshotLayer.hidden) {
+    closeScreenshot();
+    status.textContent = "Screenshot annotation cancelled.";
+    return;
+  }
   if (event.key === "Escape" && !areaLayer.hidden) {
     closeAnnotation();
     status.textContent = "Area selection cancelled.";
@@ -384,7 +578,7 @@ if (!session) {
 } else {
   frame.src = "/artifact?session=" + encodeURIComponent(session);
   frame.addEventListener("load", attachReviewEvents);
-  status.textContent = "Click anything in the page to annotate it.";
+  status.textContent = "Click, select an area, or paste a screenshot to annotate.";
   refreshVersion();
   refreshConversation();
   setInterval(refreshVersion, 1200);

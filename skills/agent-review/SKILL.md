@@ -16,8 +16,9 @@ Use `/home/fernando/Projects/agent-review/bin/agent-review.mjs` to open a local 
 5. Run `agent-review.mjs poll <file>` in the active turn. Do not repeatedly read or send the whole artifact.
 6. On element feedback, locate only the returned target, make the narrow edit, and poll again.
 7. When the target is area, use its normalized rectangle and nearby IDs to identify the intended page region; inspect only the relevant layout if it is ambiguous.
-8. When the target is chat, answer in the browser with `agent-review.mjs reply <file> <concise-reply>`, then poll again.
-9. Stop when poll returns `{"status":"ended"}`.
+8. When the target is screenshot, inspect the returned `screenshot.annotated` local image with the available image-viewing tool. Compare `screenshot.original` only when the drawing obscures context. Apply the accompanying comment without asking the user to paste or upload it again.
+9. When the target is chat, answer in the browser with `agent-review.mjs reply <file> <concise-reply>`, then poll again.
+10. Stop when poll returns `{"status":"ended"}`.
 
 Poll returns compact JSON like:
 

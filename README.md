@@ -18,8 +18,16 @@ node bin/agent-review.mjs open examples/plan.html
 node bin/agent-review.mjs poll examples/plan.html
 ```
 
-Click an element to comment on it, or choose `Select area` and drag over any region—including blank space—before entering an instruction. The `poll`
-command prints one compact JSON response. Browser chat arrives with target `chat`;
+Click an element to comment on it, or choose `Select area` and drag over any
+region—including blank space—before entering an instruction.
+
+To review a screenshot, press Ctrl/⌘+V anywhere in the page, drag an image into
+the browser, or use `Add screenshot`. Draw on it with the red pen, add a short
+instruction, and send it. PNG, JPEG, and WebP images up to 15 MB are accepted.
+The original and composited annotation are saved under
+`~/.cg-agentic-review/uploads/<session>/`.
+
+The `poll` command prints one compact JSON response. Browser chat arrives with target `chat`;
 answer it with `cg-review reply <file.html> "Your reply"`. After editing the HTML,
 run `poll` again. The browser reloads the artifact automatically.
 
@@ -47,6 +55,8 @@ not tied to either agent.
 - Element feedback contains only its stable target, selected excerpt (up to
   400 characters), and comment (up to 2,000 characters). Area feedback adds a
   bounded normalized rectangle and up to eight nearby stable IDs, not a screenshot.
+- Screenshot feedback contains the instruction and two local file paths. Image
+  bytes are not embedded in the agent message or repeated as base64 text.
 - The agent edits the local file instead of reproducing the full result in chat.
 - The server and an idle `poll` consume no model tokens.
 

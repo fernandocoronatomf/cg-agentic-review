@@ -11,6 +11,7 @@
       <div class="brand"><strong>CG</strong><span>AGENTIC REVIEW</span></div>
       <div class="header-actions">
         <span id="status" role="status">Loading…</span>
+        <button id="screenshot-toggle" class="screenshot-button">Add screenshot</button>
         <button id="area-toggle" class="area-button">Select area</button>
         <button id="chat-toggle" class="chat-button">Chat <span id="unread" hidden>●</span></button>
         <button id="end" class="end-button">End review</button>
@@ -64,6 +65,36 @@
         </div>
       </section>
     </div>
+
+    <div id="screenshot-layer" class="screenshot-layer" hidden>
+      <section class="screenshot-card" role="dialog" aria-modal="true" aria-labelledby="screenshot-title">
+        <header>
+          <div>
+            <span class="dialog-kicker">SCREENSHOT FEEDBACK</span>
+            <h2 id="screenshot-title">Draw on the screenshot</h2>
+          </div>
+          <button id="screenshot-close" aria-label="Close screenshot annotation">×</button>
+        </header>
+        <div class="canvas-wrap">
+          <canvas id="screenshot-canvas"></canvas>
+        </div>
+        <div class="screenshot-tools">
+          <span>Red pen</span>
+          <button id="screenshot-undo" class="secondary">Undo</button>
+          <button id="screenshot-clear" class="secondary">Clear drawing</button>
+        </div>
+        <textarea id="screenshot-comment" rows="3" placeholder="Tell the agent what should change…"></textarea>
+        <footer>
+          <small>Paste another image anytime · Ctrl/⌘ + Enter to send</small>
+          <div>
+            <button id="screenshot-cancel" class="secondary">Cancel</button>
+            <button id="screenshot-send">Send to agent</button>
+          </div>
+        </footer>
+      </section>
+    </div>
+    <div id="drop-hint" class="drop-hint" hidden>Drop screenshot to annotate</div>
+    <input id="screenshot-file" type="file" accept="image/png,image/jpeg,image/webp" hidden>
     <script src="/app.js"></script>
   </body>
 </html>

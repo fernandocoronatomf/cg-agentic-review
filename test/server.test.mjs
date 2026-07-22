@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -9,10 +9,10 @@ async function fixture() {
   const directory = await mkdtemp(join(tmpdir(), "agent-review-"));
   const file = join(directory, "review.html");
   await writeFile(file, "<!doctype html><h1 data-review-id=title>Hello</h1>");
-  const server = createReviewServer();
+  const server = createReviewServer({ stateDir: directory });
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
   const { port } = server.address();
-  return { server, file, base: `http://127.0.0.1:${port}` };
+  return { server, file, directory, base: `http://127.0.0.1:${port}` };
 }
 
 test("serves an explicitly opened artifact", async (t) => {
@@ -153,4 +153,53 @@ test("delivers bounded area-selection context", async (t) => {
       nearby: ["@summary", "@step-1"],
     },
   });
+});
+
+test("stores original and annotated screenshots and queues only their paths", async (t) => {
+  const { server, file, base } = await fixture();
+  t.after(() => server.close());
+  const opened = await fetch(base + "/api/open", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ file }),
+  }).then((response) => response.json());
+
+  const originalBytes = Buffer.from("original-image");
+  const uploaded = await fetch(base + "/api/upload?session=" + opened.id, {
+    method: "POST",
+    headers: { "content-type": "image/png" },
+    body: originalBytes,
+  }).then((response) => response.json());
+  assert.deepEqual(await readFile(uploaded.original), originalBytes);
+
+  const annotatedBytes = Buffer.from("annotated-image");
+  const annotated = await fetch(
+    base + "/api/annotate?session=" + opened.id + "&upload=" + uploaded.upload,
+    {
+      method: "POST",
+      headers: { "content-type": "image/png" },
+      body: annotatedBytes,
+    },
+  ).then((response) => response.json());
+  assert.deepEqual(await readFile(annotated.annotated), annotatedBytes);
+
+  await fetch(base + "/api/screenshot-feedback", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      session: opened.id,
+      upload: uploaded.upload,
+      comment: "Move the contents table into the marked space",
+    }),
+  });
+  const result = await fetch(base + "/api/poll?session=" + opened.id)
+    .then((response) => response.json());
+  assert.deepEqual(result.items, [{
+    target: "screenshot",
+    comment: "Move the contents table into the marked space",
+    screenshot: {
+      original: uploaded.original,
+      annotated: annotated.annotated,
+    },
+  }]);
 });
