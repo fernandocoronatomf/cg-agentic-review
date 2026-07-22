@@ -24,6 +24,7 @@ const screenshotFile = document.querySelector("#screenshot-file");
 const dropHint = document.querySelector("#drop-hint");
 const screenshotContext = screenshotCanvas.getContext("2d");
 let version = null;
+let appVersion = null;
 let highlighted = null;
 let previousOutline = "";
 let activeTarget = "page";
@@ -471,6 +472,11 @@ async function refreshVersion() {
   try {
     const response = await fetch("/api/version?session=" + encodeURIComponent(session), { cache: "no-store" });
     const data = await response.json();
+    if (appVersion !== null && data.appVersion !== appVersion) {
+      location.reload();
+      return;
+    }
+    appVersion = data.appVersion;
     if (version !== null && data.version !== version) {
       frame.contentWindow.location.reload();
       status.textContent = "Updated by agent.";

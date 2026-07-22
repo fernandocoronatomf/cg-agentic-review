@@ -25,6 +25,9 @@ test("serves an explicitly opened artifact", async (t) => {
   }).then((response) => response.json());
   const artifact = await fetch(`${base}/artifact?session=${opened.id}`).then((response) => response.text());
   assert.match(artifact, /Hello/);
+  const version = await fetch(base + "/api/version?session=" + opened.id)
+    .then((response) => response.json());
+  assert.equal(typeof version.appVersion, "number");
 });
 
 test("delivers compact feedback to a waiting poll", async (t) => {

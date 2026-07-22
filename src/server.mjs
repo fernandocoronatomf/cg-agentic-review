@@ -205,8 +205,16 @@ export function createReviewServer(options = {}) {
       if (request.method === "GET" && url.pathname === "/api/version") {
         const session = getSession(url);
         if (!session) return json(response, 404, { error: "Unknown session" });
-        const info = await stat(session.file);
-        json(response, 200, { version: info.mtimeMs });
+        const [info, ...assets] = await Promise.all([
+          stat(session.file),
+          stat(resolve(PUBLIC, "index.html")),
+          stat(resolve(PUBLIC, "app.js")),
+          stat(resolve(PUBLIC, "style.css")),
+        ]);
+        json(response, 200, {
+          version: info.mtimeMs,
+          appVersion: Math.max(...assets.map((asset) => asset.mtimeMs)),
+        });
         return;
       }
 
