@@ -426,6 +426,8 @@ async function refreshConnection() {
       showConnection("ended", "Review ended", "The local server is online, but this review is closed.");
     } else if (data.agentListening) {
       showConnection("connected", "Agent listening", "Feedback will be delivered immediately.");
+    } else if (data.agentProcessing) {
+      showConnection("processing", "Agent processing", "Your feedback was delivered and the agent is handling it.");
     } else {
       const queued = data.queued
         ? " " + data.queued + " feedback item" + (data.queued === 1 ? " is" : "s are") + " queued."

@@ -230,4 +230,8 @@ test("reports whether an agent listener is connected", async (t) => {
     body: JSON.stringify({ session: opened.id, text: "Finish listener test" }),
   });
   await polling;
+  const processing = await fetch(base + "/api/status?session=" + opened.id)
+    .then((response) => response.json());
+  assert.equal(processing.agentListening, false);
+  assert.equal(processing.agentProcessing, true);
 });

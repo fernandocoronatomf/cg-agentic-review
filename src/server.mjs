@@ -132,6 +132,7 @@ export function createReviewServer(options = {}) {
       const waiter = session.waiter;
       session.waiter = null;
       clearTimeout(waiter.timer);
+      session.lastDeliveryAt = Date.now();
       json(waiter.response, 200, { status: "feedback", items });
     } else if (session.ended) {
       const waiter = session.waiter;
@@ -182,6 +183,7 @@ export function createReviewServer(options = {}) {
             messages: [],
             uploads: new Map(),
             lastAgentSeenAt: 0,
+            lastDeliveryAt: 0,
             ended: false,
             waiter: null,
             nonce: randomUUID(),
@@ -211,12 +213,17 @@ export function createReviewServer(options = {}) {
       if (request.method === "GET" && url.pathname === "/api/status") {
         const session = getSession(url);
         if (!session) return json(response, 404, { error: "Unknown session" });
+        const agentListening = Boolean(session.waiter)
+          || ((session.lastAgentSeenAt || 0) > (session.lastDeliveryAt || 0)
+            && Date.now() - session.lastAgentSeenAt < 2_000);
         json(response, 200, {
           status: session.ended ? "ended" : "open",
           queued: session.queue.length,
-          agentListening: Boolean(session.waiter)
-            || Date.now() - (session.lastAgentSeenAt || 0) < 2_000,
+          agentListening,
+          agentProcessing: !agentListening
+            && Date.now() - (session.lastDeliveryAt || 0) < 120_000,
           lastAgentSeenAt: session.lastAgentSeenAt || null,
+          lastDeliveryAt: session.lastDeliveryAt || null,
         });
         return;
       }
@@ -302,6 +309,7 @@ export function createReviewServer(options = {}) {
         session.lastAgentSeenAt = Date.now();
         if (session.queue.length) {
           const items = session.queue.splice(0);
+          session.lastDeliveryAt = Date.now();
           json(response, 200, { status: "feedback", items });
           return;
         }
