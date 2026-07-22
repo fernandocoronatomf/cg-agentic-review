@@ -232,6 +232,9 @@ function attachReviewEvents() {
     const selection = doc.getSelection()?.toString() || "";
     if (selection.trim()) choose(event.target, selection);
   });
+  doc.addEventListener("paste", handleScreenshotPaste);
+  doc.addEventListener("dragover", handleScreenshotDragover);
+  doc.addEventListener("drop", handleScreenshotDrop);
 }
 
 async function send(path, payload) {
@@ -517,33 +520,40 @@ function finishScreenshotStroke() {
 screenshotCanvas.addEventListener("pointerup", finishScreenshotStroke);
 screenshotCanvas.addEventListener("pointercancel", finishScreenshotStroke);
 
-document.addEventListener("paste", (event) => {
+function handleScreenshotPaste(event) {
   const item = [...(event.clipboardData?.items || [])].find((candidate) => candidate.type.startsWith("image/"));
   if (!item) return;
   event.preventDefault();
   openScreenshot(item.getAsFile());
-});
+}
+
+function handleScreenshotDragover(event) {
+  if (![...(event.dataTransfer?.types || [])].includes("Files")) return;
+  event.preventDefault();
+}
+
+function handleScreenshotDrop(event) {
+  if (![...(event.dataTransfer?.types || [])].includes("Files")) return;
+  event.preventDefault();
+  dragDepth = 0;
+  dropHint.hidden = true;
+  const file = [...(event.dataTransfer?.files || [])].find((candidate) => candidate.type.startsWith("image/"));
+  if (file) openScreenshot(file);
+}
+
+document.addEventListener("paste", handleScreenshotPaste);
 document.addEventListener("dragenter", (event) => {
   if (![...(event.dataTransfer?.types || [])].includes("Files")) return;
   event.preventDefault();
   dragDepth += 1;
   dropHint.hidden = false;
 });
-document.addEventListener("dragover", (event) => {
-  if (![...(event.dataTransfer?.types || [])].includes("Files")) return;
-  event.preventDefault();
-});
+document.addEventListener("dragover", handleScreenshotDragover);
 document.addEventListener("dragleave", () => {
   dragDepth = Math.max(0, dragDepth - 1);
   if (!dragDepth) dropHint.hidden = true;
 });
-document.addEventListener("drop", (event) => {
-  event.preventDefault();
-  dragDepth = 0;
-  dropHint.hidden = true;
-  const file = [...(event.dataTransfer?.files || [])].find((candidate) => candidate.type.startsWith("image/"));
-  if (file) openScreenshot(file);
-});
+document.addEventListener("drop", handleScreenshotDrop);
 
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && !screenshotLayer.hidden) {
