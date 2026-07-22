@@ -428,7 +428,7 @@ async function refreshConnection() {
     } else if (data.agentListening) {
       showConnection("connected", "Agent listening", "Feedback will be delivered immediately.");
     } else if (data.agentProcessing) {
-      showConnection("processing", "Agent processing", "Your feedback was delivered and the agent is handling it.");
+      showConnection("delivered", "Feedback delivered", "The terminal listener received it. Return to the agent chat to continue.");
     } else {
       const queued = data.queued
         ? " " + data.queued + " feedback item" + (data.queued === 1 ? " is" : "s are") + " queued."
