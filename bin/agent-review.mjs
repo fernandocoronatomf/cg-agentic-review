@@ -14,7 +14,7 @@ function usage() {
   console.log(`CG Agentic Review
 
 Usage:
-  cg-review open <file.html> [--no-open]
+  cg-review open <file.html> [--no-open] [--no-watch]
   cg-review poll <file.html>
   cg-review watch <file.html>
   cg-review reply <file.html> <message>
@@ -22,9 +22,9 @@ Usage:
   cg-review status <file.html>
   cg-review stop
 
-The poll command prints one feedback response and exits. The watch command
-stays connected and prints one compact JSON line for every response until the
-review ends.`);
+Open stays connected by default until the review ends. Use --no-watch to exit
+after opening. Poll prints one response and exits; watch connects without opening
+a browser.`);
 }
 
 async function request(pathname, options = {}) {
@@ -78,6 +78,18 @@ async function register(file, reopen = false) {
   return response.json();
 }
 
+async function listen(session, once = false) {
+  while (true) {
+    const response = await request("/api/poll?session=" + encodeURIComponent(session.id));
+    if (!response.ok) throw new Error(await response.text());
+    const result = await response.json();
+    if (result.status !== "waiting") {
+      process.stdout.write(JSON.stringify(result) + "\n");
+      if (once || result.status === "ended") return;
+    }
+  }
+}
+
 function launchBrowser(url) {
   let command;
   let args;
@@ -126,20 +138,14 @@ async function main() {
     const url = `http://${HOST}:${DEFAULT_PORT}/?session=${encodeURIComponent(session.id)}`;
     if (!flags.includes("--no-open")) launchBrowser(url);
     console.log(url);
+    if (!flags.includes("--no-watch")) await listen(session);
     return;
   }
 
   if (command === "poll" || command === "watch") {
     const session = await register(file);
-    while (true) {
-      const response = await request(`/api/poll?session=${encodeURIComponent(session.id)}`);
-      if (!response.ok) throw new Error(await response.text());
-      const result = await response.json();
-      if (result.status !== "waiting") {
-        process.stdout.write(`${JSON.stringify(result)}\n`);
-        if (command === "poll" || result.status === "ended") return;
-      }
-    }
+    await listen(session, command === "poll");
+    return;
   }
 
   if (command === "reply") {

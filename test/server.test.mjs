@@ -246,7 +246,7 @@ test("reports whether an agent listener is connected", async (t) => {
 });
 
 
-test("watch stays connected across multiple feedback batches", async (t) => {
+test("open stays connected across multiple feedback batches", async (t) => {
   const { server, file, base } = await fixture();
   t.after(() => server.close());
   const opened = await fetch(base + "/api/open", {
@@ -255,7 +255,7 @@ test("watch stays connected across multiple feedback batches", async (t) => {
     body: JSON.stringify({ file }),
   }).then((response) => response.json());
 
-  const child = spawn(process.execPath, [CLI, "watch", file], {
+  const child = spawn(process.execPath, [CLI, "open", file, "--no-open"], {
     env: { ...process.env, AGENT_REVIEW_PORT: new URL(base).port },
     stdio: ["ignore", "pipe", "pipe"],
   });
@@ -269,7 +269,7 @@ test("watch stays connected across multiple feedback batches", async (t) => {
     errors += chunk;
   });
   const lines = createInterface({ input: child.stdout })[Symbol.asyncIterator]();
-  async function nextJson() {
+  async function nextLine() {
     let timer;
     const result = await Promise.race([
       lines.next(),
@@ -278,10 +278,15 @@ test("watch stays connected across multiple feedback batches", async (t) => {
       }),
     ]);
     clearTimeout(timer);
-    assert.equal(result.timeout, undefined, "watch output timed out: " + errors);
+    assert.equal(result.timeout, undefined, "listener output timed out: " + errors);
     assert.equal(result.done, false);
-    return JSON.parse(result.value);
+    return result.value;
   }
+  async function nextJson() {
+    return JSON.parse(await nextLine());
+  }
+
+  assert.equal(await nextLine(), base + "/?session=" + opened.id);
 
   let connected = false;
   for (let attempt = 0; attempt < 50; attempt += 1) {
